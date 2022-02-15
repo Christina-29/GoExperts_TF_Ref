@@ -1,0 +1,36 @@
+pipeline{
+    agent any 
+     stages{
+        stage('Create js file'){
+            steps{
+                dir("modules/lambda-api-gateway/functions"){
+                    /*  
+                        1. Execute only when you need to create the lambda function.
+                        2. The updating process needs to be carried out in the lambda source repo
+                        3. Rename the names to your own lambda functions
+                    */
+                    sh 'mkdir download-images store-images upload-images'
+                    sh 'touch download-images/download-images.js store-images/store-images.js upload-images/upload-images.js'
+                }
+            }
+        }
+    
+        stage('Terraform init'){
+            steps{
+                dir("applications/aws_api_lambda"){
+                    sh 'rm -rf ./*.tfstate'
+                    sh 'terraform init'
+
+                }   
+            }   
+        }   
+    
+        stage('Terraform apply'){
+            steps{
+                dir("applications/aws_api_lambda"){
+                    sh 'terraform apply --auto-approve'
+                }   
+            }   
+        }   
+    }   
+}

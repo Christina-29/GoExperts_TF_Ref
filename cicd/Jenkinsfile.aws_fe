@@ -1,0 +1,76 @@
+pipeline{
+  agent any
+
+  parameters {
+    choice(name: 'workspace', choices:['uat', 'prod'], description: 'Workspace/environment file to use for deployment')
+    booleanParam(name: 'destroy', defaultValue: false, description: 'Destroy Terraform build?')
+  }
+                               
+  environment {
+    HOSTED_ZONE_ID = 'GoExperts_ZoneID'
+  }
+
+  options {
+    // Keep maximum 10 archievd artifacts
+    buildDiscarder(logRotator(numToKeepStr:'10', artifactNumToKeepStr:'10'))
+    // No simultaneous builds
+    disableConcurrentBuilds()
+    durabilityHint('MAX_SURVIVABILITY') // PERFORMANCE_OPTIMIZED or SURVIVABLE_NONATOMIC
+  }
+
+  stages{
+        
+        stage('Terraform init'){
+            steps{
+                dir("applications/aws_frontend"){
+                    sh 'terraform init'
+                    sh 'terraform workspace list'
+                    sh "terraform workspace select ${params.workspace}"
+                    //Create the hosted_zone ID into terraform.tfvars
+                    withCredentials([string(credentialsId: 'GoExperts_ZoneID', variable: 'ZONE_ID')]) {
+                      sh 'echo zone_id = \\"${ZONE_ID}\\" > terraform.tfvars'
+                    }
+                }
+            }
+        }
+       
+        stage('Terraform apply'){
+            when {
+              not {
+                equals expected: true, actual: params.destroy
+              }
+            }  
+            steps{
+              dir("applications/aws_frontend"){
+                sh 'terraform apply --auto-approve'
+                //Delete the *.tfvars with credentials
+                sh 'rm -rf terraform.tfvars'
+              }
+            }
+        }
+
+        stage('Terraform destroy'){
+            when {
+              equals expected: true, actual: params.destroy
+            }  
+            steps{
+              dir("applications/aws_frontend"){                
+                sh 'terraform destroy --auto-approve'
+                //Delete the *.tfvars with credentials
+                sh 'rm -rf terraform.tfvars'                
+              }
+            }
+        }
+  }
+
+  post {
+        success {
+            echo "WELL DONE!!"
+            bitbucketStatusNotify(buildState: 'SUCCESSFUL')
+        }
+        failure {
+            echo "FAILED"
+            bitbucketStatusNotify(buildState: 'FAILED')
+        }
+  }
+}

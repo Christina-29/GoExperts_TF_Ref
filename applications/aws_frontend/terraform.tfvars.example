@@ -1,0 +1,9 @@
+region         = "ap-southeast-2"
+lockname       = "goexpert-lock"
+zone_id        = "Z0XXXXXXXXXXXXXXXXXXXXXXXXX"
+domain_name    = "goexpert-test.willd.link"
+bucket_name    = "goexpert-test.willd.link"
+common_tags    = { Project = "goexpert-test" }
+backend_bucket = "envfiles.goexpert"
+environment    = "test"
+env_prefix     = "goexpert-test"
